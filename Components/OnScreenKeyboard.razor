@@ -1,0 +1,59 @@
+﻿@* // -------------------- OnScreenKeyboard.razor ------------------------ // *@
+@using oskPro.Services;
+@inject IOskService OskService
+@implements IDisposable
+
+<MudPaper Elevation="10" Class="osk-container" @onclick:stopPropagation="true"
+    Style="position: fixed; bottom: 0; left: 0; right: 0; padding: 12px; background-color: #1e1e1e; z-index: 1000;">
+    <MudGrid Spacing="1" Style="padding: 5px; display: flex; flex-direction: column; align-items: center;">
+        @foreach (var row in KeyboardLayout)
+        {
+            <MudItem xs="12" Style="display: flex; justify-content: center;">
+                @foreach (var key in row)
+                {
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Class="osk-key" OnClick="() => PressKey(key)">
+                        @key
+                    </MudButton>
+                }
+            </MudItem>
+        }
+    </MudGrid>
+</MudPaper>
+
+@code {
+    [Parameter] public bool ShowNumpad { get; set; }
+
+    private static readonly List<List<string>> StandardKeyboard = new()
+{
+new() { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "⬅" },
+new() { "q", "w", "e", "r", "t", "z", "u", "i", "o", "p", "ü" },
+new() { "a", "s", "d", "f", "g", "h", "j", "k", "l", "ö", "ä" },
+new() { "Shift", "y", "x", "c", "v", "b", "n", "m", ",", ".", "Shift" },
+new() { "Space" }
+};
+
+    private static readonly List<List<string>> KeyboardWithNumpad = new()
+{
+new() { "7", "8", "9", "/" },
+new() { "4", "5", "6", "*" },
+new() { "1", "2", "3", "-" },
+new() { "0", ".", "↩", "+" }
+};
+
+    private List<List<string>> KeyboardLayout => ShowNumpad ? KeyboardWithNumpad : StandardKeyboard;
+
+    private void PressKey(string key)
+    {
+        OskService.KeyPressed(key);
+    }
+
+    protected override void OnInitialized()
+    {
+        OskService.OnVisibilityChanged += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        OskService.OnVisibilityChanged -= StateHasChanged;
+    }
+}

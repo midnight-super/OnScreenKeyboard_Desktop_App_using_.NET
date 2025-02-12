@@ -1,0 +1,48 @@
+﻿@* //----------------Sample.razor--------------------------------- *@
+@page "/"
+@using oskPro.Services;
+@using oskPro.Components;
+<MudTextField Label="Type here" @bind-Value="_textInput" Variant="Variant.Outlined" InputId="main-input"
+  @ref="_textField" onfocus="@(() => OskService.OpenOsk(_textField!))" />
+
+<MudTextField Label="With numpad" @bind-Value="_textInput2" Variant="Variant.Outlined" InputId="numpad-input"
+  @ref="_textField2" onfocus="@(() => OskService.OpenOsk(_textField2!, true))" />
+
+@if (OskService.IsVisible)
+{
+  <OnScreenKeyboard ShowNumpad="OskService.IsNumpadVisible" />
+}
+
+@code {
+  private MudTextField<string>? _textField;
+  private MudTextField<string>? _textField2;
+  private string _textInput = "";
+  private string _textInput2 = "";
+
+  [Inject] private IOskService OskService { get; set; } = default!;
+
+  protected override void OnInitialized()
+  {
+    OskService.OnVisibilityChanged += StateHasChanged;
+  }
+
+  protected override async Task OnAfterRenderAsync(bool firstRender)
+  {
+    if (OskService.IsVisible)
+    {
+      if (OskService.ActiveField == _textField)
+      {
+        await _textField!.FocusAsync();
+      }
+      else if (OskService.ActiveField == _textField2)
+      {
+        await _textField2!.FocusAsync();
+      }
+    }
+  }
+
+  public void Dispose()
+  {
+    OskService.OnVisibilityChanged -= StateHasChanged;
+  }
+}
