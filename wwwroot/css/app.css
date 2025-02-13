@@ -95,28 +95,3 @@ h1:focus {
     padding-left: env(safe-area-inset-left);
   }
 }
-.osk-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 10px;
-  background-color: white;
-  width: 100%;
-  max-width: 1000px;
-  border-radius: 10px;
-  box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.2);
-}
-
-.osk-key {
-  width: 48px;
-  height: 48px;
-  margin: 5px;
-  font-size: 16px;
-  text-align: center;
-  border-radius: 50%;
-}
-
-.osk-key:hover {
-  background-color: #007bff;
-  color: white;
-}

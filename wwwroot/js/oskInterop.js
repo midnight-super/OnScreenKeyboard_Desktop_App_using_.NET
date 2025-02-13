@@ -1,3 +1,4 @@
+/* -------------------- wwwroot/js/oskInterop.js ------------------------ */
 export function initializeOsk(dotNetRef, oskContainerClass, inputId) {
   const keyboardMap = {
     a: "a",

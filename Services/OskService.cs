@@ -1,3 +1,4 @@
+// --------------------------OskService.cs-------------------------------//
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using MudBlazor;
@@ -18,23 +19,18 @@ public interface IOskService
     bool IsNumpadVisible { get; }
 }
 
-public partial class OskService : IOskService, IDisposable
+public partial class OskService(IJSRuntime jsRuntime) : IOskService, IDisposable
 {
-    private readonly IJSRuntime _jsRuntime;
+    private readonly IJSRuntime _jsRuntime = jsRuntime;
     private MudTextField<string>? _activeField;
     private DotNetObjectReference<OskService>? _dotNetRef;
     private IJSObjectReference? _jsModule;
     private IJSObjectReference? _oskListener;
 
-    public OskService(IJSRuntime jsRuntime)
-    {
-        _jsRuntime = jsRuntime;
-    }
-
     public MudTextField<string>? ActiveField => _activeField;
     public bool IsVisible { get; private set; }
     public bool IsNumpadVisible { get; private set; }
-    private static readonly string[] sourceArray = new[] { "Shift", "Ctrl", "Alt", "Win", "AltGr", "Menu", "Caps" };
+    private static readonly string[] sourceArray = ["Shift", "Ctrl", "Alt", "Win", "AltGr", "Menu", "Caps"];
 
     public event Action<string>? OnKeyPressed;
     public event Action? OnVisibilityChanged;
