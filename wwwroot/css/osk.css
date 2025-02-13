@@ -1,20 +1,58 @@
 /* -------------------- wwwroot/css/osk.css ------------------------ */
 .osk-container {
   transition: transform 0.3s ease-in-out;
+  font-family: "Segoe UI", system-ui, sans-serif;
 }
 
-.osk-key {
-  min-width: 50px;
+.key-standard {
+  background-color: #4f4f4f;
+  color: white !important;
   height: 50px;
   margin: 2px;
-  font-size: 1.2em;
-  touch-action: manipulation;
+  border-radius: 4px;
+  font-size: 1.1em;
+  min-width: 50px;
+  text-transform: none;
+}
+
+.key-special {
+  background-color: #3b3b3b;
+  color: white !important;
+  height: 50px;
+  margin: 2px;
+  border-radius: 4px;
+  font-size: 1.1em;
+}
+
+.key-modifier {
+  background-color: #2a2a2a;
+  color: white !important;
+  height: 50px;
+  margin: 2px;
+  border-radius: 4px;
+  font-size: 1em;
+}
+
+.key-space {
+  background-color: #3b3b3b;
+  color: white !important;
+  height: 50px;
+  margin: 2px;
+  border-radius: 4px;
+  min-width: 400px;
 }
 
 @media (max-width: 600px) {
-  .osk-key {
-    min-width: 40px;
+  .key-standard,
+  .key-special,
+  .key-modifier {
     height: 40px;
-    font-size: 1em;
+    min-width: 40px;
+    font-size: 0.9em;
+  }
+
+  .key-space {
+    min-width: 300px;
+    height: 40px;
   }
 }
