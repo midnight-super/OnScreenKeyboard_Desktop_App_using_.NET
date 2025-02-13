@@ -1,17 +1,15 @@
-﻿@* -------------------- OnScreenKeyboard.razor ------------------------ *@
-@using oskPro.Services;
+﻿@using oskPro.Services;
 @inject IOskService OskService
 @implements IDisposable
-
-<MudPaper Elevation="10" Class="osk-container" @onclick:stopPropagation="true"
-    Style="position: fixed; bottom: 0; left: 0; right: 0; padding: 12px; background-color: #2D2D2D; z-index: 1000;">
+<MudPaper Elevation="10" Class="osk-container" @onclick:stopPropagation="true">
     <MudGrid Spacing="0" Style="padding: 5px; display: flex; flex-direction: column; align-items: center;">
         @foreach (var row in KeyboardLayout)
         {
             <MudItem xs="12" Style="display: flex; justify-content: center; margin: 2px 0;">
                 @foreach (var key in row)
                 {
-                    <MudButton Variant="Variant.Filled" Class="@($"osk-key {GetKeyClass(key)}")"
+                    <MudButton Variant="Variant.Filled"
+                        Class="@($"osk-key {GetKeyClass(key)} {(IsKeyActive(key) ? "active" : "")}")"
                         OnClick="@(() => PressKey(key))" Style="@($"min-width: {GetKeyWidth(key)};")">
                         @GetDisplayKey(key)
                     </MudButton>
@@ -26,15 +24,17 @@
     private bool _isShiftActive;
     private bool _isCapsLock;
     private bool _isAltGrActive;
+    private HashSet<string> _activeKeys = new();
 
     private static readonly List<List<string>> StandardKeyboard = new()
 {
-new() { "^", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "ß", "'", "⬅" },
+new() { "^", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "ß", "'", "Backspace" },
 new() { "Tab", "q", "w", "e", "r", "t", "z", "u", "i", "o", "p", "ü", "+", "#" },
 new() { "Caps", "a", "s", "d", "f", "g", "h", "j", "k", "l", "ö", "ä", "Enter" },
 new() { "Shift", "<", "y", "x", "c", "v", "b", "n", "m", ",", ".", "-", "Shift" },
 new() { "Ctrl", "Win", "Alt", "Space", "AltGr", "Menu", "Ctrl" }
 };
+
     private static readonly List<List<string>> KeyboardWithNumpad = new()
 {
 new() { "7", "8", "9", "/" },
@@ -42,63 +42,11 @@ new() { "4", "5", "6", "*" },
 new() { "1", "2", "3", "-" },
 new() { "0", ".", "↩", "+" }
 };
+
     private List<List<string>> KeyboardLayout => ShowNumpad ? KeyboardWithNumpad : StandardKeyboard;
 
-    private string GetDisplayKey(string key)
-    {
-        if (IsModifierKey(key)) return key;
-
-        if (_isShiftActive || _isCapsLock)
-        {
-            return key switch
-            {
-                "^" => "°",
-                "1" => "!",
-                "2" => "\"",
-                "3" => "§",
-                "4" => "$",
-                "5" => "%",
-                "6" => "&",
-                "7" => "/",
-                "8" => "(",
-                "9" => ")",
-                "0" => "=",
-                "ß" => "?",
-                "'" => "`",
-                "ü" => "Ü",
-                "+" => "*",
-                "#" => "'",
-                "ö" => "Ö",
-                "ä" => "Ä",
-                "," => ";",
-                "." => ":",
-                "-" => "_",
-                "<" => ">",
-                _ => key.ToUpper()
-            };
-        }
-        else if (_isAltGrActive)
-        {
-            return key switch
-            {
-                "q" => "@",
-                "e" => "€",
-                "+" => "~",
-                "c" => "¢",
-                "n" => "¬",
-                "7" => "{",
-                "8" => "[",
-                "9" => "]",
-                "0" => "}",
-                "ß" => "\\",
-                "ü" => "|",
-                "ö" => "ö",
-                "ä" => "ä",
-                _ => key
-            };
-        }
-        return key;
-    }
+    private string GetDisplayKey(string key) =>
+    OskService.GetDisplayKey(key, _isShiftActive, _isCapsLock, _isAltGrActive);
 
     private string GetKeyClass(string key)
     {
@@ -130,33 +78,81 @@ new() { "0", ".", "↩", "+" }
     private bool IsModifierKey(string key) =>
     new[] { "Shift", "Ctrl", "Alt", "Win", "AltGr", "Menu", "Caps" }.Contains(key);
 
+    private bool IsKeyActive(string key)
+    {
+        if (key == "Shift") return _isShiftActive;
+        if (key == "Caps") return _isCapsLock;
+        if (key == "AltGr") return _isAltGrActive;
+        return _activeKeys.Contains(key.ToLower());
+    }
+
     private void PressKey(string key)
     {
-        if (IsModifierKey(key))
+        HandleModifierKey(key);
+        if (!IsModifierKey(key))
         {
-            switch (key)
-            {
-                case "Shift":
-                    _isShiftActive = !_isShiftActive;
-                    break;
-                case "Caps":
-                    _isCapsLock = !_isCapsLock;
-                    break;
-                case "AltGr":
-                    _isAltGrActive = !_isAltGrActive;
-                    break;
-            }
+            var actualKey = GetDisplayKey(key);
+            OskService.KeyPressed(actualKey, false);
+            _activeKeys.Add(key.ToLower());
             StateHasChanged();
-            return;
+            Task.Delay(100).ContinueWith(_ =>
+            {
+                _activeKeys.Remove(key.ToLower());
+                InvokeAsync(StateHasChanged);
+            });
+            ResetModifiers(key);
         }
+    }
 
-        var actualKey = GetDisplayKey(key);
-        OskService.KeyPressed(actualKey);
+    private void HandleModifierKey(string key)
+    {
+        switch (key)
+        {
+            case "Shift":
+                _isShiftActive = !_isShiftActive;
+                break;
+            case "Caps":
+                _isCapsLock = !_isCapsLock;
+                break;
+            case "AltGr":
+                _isAltGrActive = !_isAltGrActive;
+                break;
+        }
+    }
 
+    private void ResetModifiers(string key)
+    {
         if (!_isCapsLock && key != "Shift") _isShiftActive = false;
         if (key != "AltGr") _isAltGrActive = false;
     }
 
-    protected override void OnInitialized() => OskService.OnVisibilityChanged += StateHasChanged;
-    public void Dispose() => OskService.OnVisibilityChanged -= StateHasChanged;
+    private void HandlePhysicalKeyPress(string key, bool isModifier)
+    {
+        if (isModifier)
+        {
+            HandleModifierKey(key);
+        }
+        else
+        {
+            _activeKeys.Add(key.ToLower());
+            StateHasChanged();
+            Task.Delay(100).ContinueWith(_ =>
+            {
+                _activeKeys.Remove(key.ToLower());
+                InvokeAsync(StateHasChanged);
+            });
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        OskService.OnVisibilityChanged += StateHasChanged;
+        OskService.OnPhysicalKeyPress += HandlePhysicalKeyPress;
+    }
+
+    public void Dispose()
+    {
+        OskService.OnVisibilityChanged -= StateHasChanged;
+        OskService.OnPhysicalKeyPress -= HandlePhysicalKeyPress;
+    }
 }

@@ -1,29 +1,123 @@
-//-----------------oskInterop.js----------------------------//
-export function addOskClickListener(dotNetRef, oskContainerClass, inputId) {
-  const handler = (event) => {
+export function initializeOsk(dotNetRef, oskContainerClass, inputId) {
+  const keyboardMap = {
+    a: "a",
+    b: "b",
+    c: "c",
+    d: "d",
+    e: "e",
+    f: "f",
+    g: "g",
+    h: "h",
+    i: "i",
+    j: "j",
+    k: "k",
+    l: "l",
+    m: "m",
+    n: "n",
+    o: "o",
+    p: "p",
+    q: "q",
+    r: "r",
+    s: "s",
+    t: "t",
+    u: "u",
+    v: "v",
+    w: "w",
+    x: "x",
+    y: "y",
+    z: "z",
+    0: "0",
+    1: "1",
+    2: "2",
+    3: "3",
+    4: "4",
+    5: "5",
+    6: "6",
+    7: "7",
+    8: "8",
+    9: "9",
+    ",": ",",
+    ".": ".",
+    "-": "-",
+    "+": "+",
+    ß: "ß",
+    ü: "ü",
+    ö: "ö",
+    ä: "ä",
+    "#": "#",
+    "<": "<",
+    " ": "Space",
+    Enter: "Enter",
+    Backspace: "Backspace",
+  };
+
+  const modifierKeys = {
+    ShiftLeft: "Shift",
+    ShiftRight: "Shift",
+    CapsLock: "Caps",
+    AltRight: "AltGr",
+    ControlLeft: "Ctrl",
+    ControlRight: "Ctrl",
+    AltLeft: "Alt",
+    MetaLeft: "Win",
+    MetaRight: "Menu",
+  };
+
+  const keydownHandler = (event) => {
+    const inputElement = document.getElementById(inputId);
+    if (!inputElement?.matches(":focus")) return;
+
+    const key = event.key.toLowerCase();
+    const code = event.code;
+
+    // Handle modifier keys
+    if (code in modifierKeys) {
+      //event.preventDefault(); //Removed to allow native keyboard input
+      dotNetRef.invokeMethodAsync(
+        "HandlePhysicalKeyPress",
+        modifierKeys[code],
+        true
+      );
+      return;
+    }
+
+    // Handle regular keys - don't prevent default behavior
+    let mappedKey = null;
+    if (key in keyboardMap) {
+      mappedKey = keyboardMap[key];
+    } else if (event.code === "Backspace") {
+      mappedKey = "Backspace";
+    } else if (event.code === "Space") {
+      mappedKey = "Space";
+    } else if (event.code === "Enter") {
+      mappedKey = "Enter";
+    }
+
+    if (mappedKey) {
+      // Only notify about the key press for visual feedback
+      dotNetRef.invokeMethodAsync("HandlePhysicalKeyPress", mappedKey, false);
+    }
+  };
+
+  const clickHandler = (event) => {
     const isOsk = event.target.closest(`.${oskContainerClass}`);
     const inputElement = document.getElementById(inputId);
     const isInput = inputElement?.contains(event.target);
-
-    console.log("OSK Click Check:", {
-      isOsk,
-      isInput,
-      inputId,
-      targetId: event.target.id,
-    });
 
     if (!isOsk && !isInput) {
       dotNetRef.invokeMethodAsync("HandleClickOutside");
     }
   };
 
-  document.addEventListener("click", handler);
-  document.addEventListener("touchstart", handler);
+  document.addEventListener("keydown", keydownHandler);
+  document.addEventListener("click", clickHandler);
+  document.addEventListener("touchstart", clickHandler);
 
   return {
     dispose: () => {
-      document.removeEventListener("click", handler);
-      document.removeEventListener("touchstart", handler);
+      document.removeEventListener("keydown", keydownHandler);
+      document.removeEventListener("click", clickHandler);
+      document.removeEventListener("touchstart", clickHandler);
     },
   };
 }

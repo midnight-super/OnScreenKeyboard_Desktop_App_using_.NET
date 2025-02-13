@@ -1,7 +1,8 @@
-﻿@* //----------------Sample.razor--------------------------------- *@
-@page "/"
+﻿@page "/"
 @using oskPro.Services;
 @using oskPro.Components;
+@implements IDisposable
+
 <MudTextField Label="Type here" @bind-Value="_textInput" Variant="Variant.Outlined" InputId="main-input"
   @ref="_textField" onfocus="@(() => OskService.OpenOsk(_textField!))" />
 
