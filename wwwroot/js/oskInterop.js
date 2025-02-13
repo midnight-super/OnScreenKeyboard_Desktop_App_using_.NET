@@ -1,4 +1,3 @@
-/* -------------------- wwwroot/js/oskInterop.js ------------------------ */
 export function initializeOsk(dotNetRef, oskContainerClass, inputId) {
   const keyboardMap = {
     a: "a",
@@ -71,9 +70,7 @@ export function initializeOsk(dotNetRef, oskContainerClass, inputId) {
     const key = event.key.toLowerCase();
     const code = event.code;
 
-    // Handle modifier keys
     if (code in modifierKeys) {
-      //event.preventDefault(); //Removed to allow native keyboard input
       dotNetRef.invokeMethodAsync(
         "HandlePhysicalKeyPress",
         modifierKeys[code],
@@ -82,7 +79,6 @@ export function initializeOsk(dotNetRef, oskContainerClass, inputId) {
       return;
     }
 
-    // Handle regular keys - don't prevent default behavior
     let mappedKey = null;
     if (key in keyboardMap) {
       mappedKey = keyboardMap[key];
@@ -95,7 +91,6 @@ export function initializeOsk(dotNetRef, oskContainerClass, inputId) {
     }
 
     if (mappedKey) {
-      // Only notify about the key press for visual feedback
       dotNetRef.invokeMethodAsync("HandlePhysicalKeyPress", mappedKey, false);
     }
   };
@@ -122,3 +117,21 @@ export function initializeOsk(dotNetRef, oskContainerClass, inputId) {
     },
   };
 }
+
+// Functions to handle cursor position
+window.getCursorPosition = function (inputId) {
+  const input = document.getElementById(inputId);
+  if (!input) return { selectionStart: 0, selectionEnd: 0 };
+
+  return {
+    selectionStart: input.selectionStart,
+    selectionEnd: input.selectionEnd,
+  };
+};
+
+window.setCursorPosition = function (inputId, position) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+
+  input.setSelectionRange(position, position);
+};

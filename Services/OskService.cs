@@ -1,4 +1,3 @@
-// --------------------------OskService.cs-------------------------------//
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using MudBlazor;
@@ -19,13 +18,24 @@ public interface IOskService
     bool IsNumpadVisible { get; }
 }
 
-public partial class OskService(IJSRuntime jsRuntime) : IOskService, IDisposable
+public class CursorPosition
 {
-    private readonly IJSRuntime _jsRuntime = jsRuntime;
+    public int SelectionStart { get; set; }
+    public int SelectionEnd { get; set; }
+}
+
+public partial class OskService : IOskService, IDisposable
+{
+    private readonly IJSRuntime _jsRuntime;
     private MudTextField<string>? _activeField;
     private DotNetObjectReference<OskService>? _dotNetRef;
     private IJSObjectReference? _jsModule;
     private IJSObjectReference? _oskListener;
+
+    public OskService(IJSRuntime jsRuntime)
+    {
+        _jsRuntime = jsRuntime;
+    }
 
     public MudTextField<string>? ActiveField => _activeField;
     public bool IsVisible { get; private set; }
@@ -97,26 +107,69 @@ public partial class OskService(IJSRuntime jsRuntime) : IOskService, IDisposable
     public void HandlePhysicalKeyPress(string key, bool isModifier)
     {
         OnPhysicalKeyPress?.Invoke(key, isModifier);
-        // For physical keys, we only need to trigger the visual feedback
-        // The actual input will be handled by the browser's default behavior
     }
 
-    public void KeyPressed(string key, bool isPhysical)
+    public async void KeyPressed(string key, bool isPhysical)
     {
         if (_activeField == null || isPhysical) return;
 
-        // Only process key presses from the OSK (not physical keyboard)
         var currentValue = _activeField.Value ?? "";
+        var cursorInfo = await _jsRuntime.InvokeAsync<CursorPosition>("getCursorPosition", _activeField.GetInputId());
+
         var newValue = key switch
         {
-            "Backspace" => currentValue.Length > 0 ? currentValue[..^1] : "",
-            "Space" => currentValue + " ",
-            "Enter" => currentValue + "\n",
-            _ => currentValue + key
+            "Backspace" => HandleBackspace(currentValue, cursorInfo),
+            "Space" => InsertAtPosition(currentValue, " ", cursorInfo),
+            "Enter" => InsertAtPosition(currentValue, "\n", cursorInfo),
+            _ => InsertAtPosition(currentValue, key, cursorInfo)
         };
 
-        _activeField.ValueChanged.InvokeAsync(newValue);
+        await _activeField.ValueChanged.InvokeAsync(newValue);
         OnKeyPressed?.Invoke(key);
+
+        // Update cursor position after text change
+        await _jsRuntime.InvokeVoidAsync("setCursorPosition",
+            _activeField.GetInputId(),
+            GetNewCursorPosition(key, cursorInfo));
+    }
+
+    private string HandleBackspace(string text, CursorPosition cursorInfo)
+    {
+        if (cursorInfo.SelectionStart != cursorInfo.SelectionEnd)
+        {
+            // Handle selection deletion
+            return text[..cursorInfo.SelectionStart] + text[cursorInfo.SelectionEnd..];
+        }
+        else if (cursorInfo.SelectionStart > 0)
+        {
+            // Delete character before cursor
+            return text[..(cursorInfo.SelectionStart - 1)] + text[cursorInfo.SelectionStart..];
+        }
+        return text;
+    }
+
+    private string InsertAtPosition(string text, string insert, CursorPosition cursorInfo)
+    {
+        // Replace selection if exists
+        if (cursorInfo.SelectionStart != cursorInfo.SelectionEnd)
+        {
+            return text[..cursorInfo.SelectionStart] + insert + text[cursorInfo.SelectionEnd..];
+        }
+
+        // Insert at cursor position
+        return text[..cursorInfo.SelectionStart] + insert + text[cursorInfo.SelectionStart..];
+    }
+
+    private int GetNewCursorPosition(string key, CursorPosition cursorInfo)
+    {
+        if (key == "Backspace")
+        {
+            if (cursorInfo.SelectionStart != cursorInfo.SelectionEnd)
+                return cursorInfo.SelectionStart;
+            return Math.Max(0, cursorInfo.SelectionStart - 1);
+        }
+
+        return cursorInfo.SelectionStart + 1;
     }
 
     public string GetDisplayKey(string key, bool isShift, bool isCaps, bool isAltGr)
@@ -184,7 +237,6 @@ public partial class OskService(IJSRuntime jsRuntime) : IOskService, IDisposable
             await _oskListener.DisposeAsync();
     }
 }
-
 public static class MudTextFieldExtensions
 {
     public static string GetInputId(this MudTextField<string> field)
