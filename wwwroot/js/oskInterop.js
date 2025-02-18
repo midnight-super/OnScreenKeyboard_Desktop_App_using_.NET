@@ -1,3 +1,4 @@
+// oskInterop.js //
 export function initializeOsk(dotNetRef, oskContainerClass, inputId) {
   const keyboardMap = {
     a: "a",
@@ -48,6 +49,7 @@ export function initializeOsk(dotNetRef, oskContainerClass, inputId) {
     "<": "<",
     " ": "Space",
     Enter: "Enter",
+    Tab: "Tab",
     Backspace: "Backspace",
   };
 
@@ -69,7 +71,9 @@ export function initializeOsk(dotNetRef, oskContainerClass, inputId) {
 
     const key = event.key.toLowerCase();
     const code = event.code;
-
+    if (event.key === "Tab") {
+      return; // Let browser handle focus
+    }
     if (code in modifierKeys) {
       dotNetRef.invokeMethodAsync(
         "HandlePhysicalKeyPress",
@@ -98,9 +102,12 @@ export function initializeOsk(dotNetRef, oskContainerClass, inputId) {
   const clickHandler = (event) => {
     const isOsk = event.target.closest(`.${oskContainerClass}`);
     const inputElement = document.getElementById(inputId);
-    const isInput = inputElement?.contains(event.target);
+    const isInput =
+      inputElement &&
+      (event.target === inputElement || inputElement.contains(event.target));
 
-    if (!isOsk && !isInput) {
+    // Check if the input is focused (active). If so, do not close the OSK.
+    if (!isOsk && !isInput && document.activeElement !== inputElement) {
       dotNetRef.invokeMethodAsync("HandleClickOutside");
     }
   };
@@ -134,4 +141,49 @@ window.setCursorPosition = function (inputId, position) {
   if (!input) return;
 
   input.setSelectionRange(position, position);
+};
+
+export function slideOutOsk(oskContainerClass, duration) {
+  const element = document.querySelector("." + oskContainerClass);
+  if (!element) return;
+
+  // Reset to starting position
+  element.style.transform = "translate(-50%, 0%)";
+
+  let start = null;
+  function step(timestamp) {
+    if (!start) start = timestamp;
+    const progress = timestamp - start;
+
+    // Calculate vertical offset while maintaining horizontal centering
+    const verticalOffset = Math.min((progress / duration) * 100, 100);
+    element.style.transform = `translate(-50%, ${verticalOffset}%)`;
+
+    if (progress < duration) {
+      window.requestAnimationFrame(step);
+    } else {
+      // Final position off-screen (keep horizontal centering)
+      element.style.transform = "translate(-50%, 100%)";
+    }
+  }
+  window.requestAnimationFrame(step);
+}
+
+window.moveToNextFocusableElement = function (currentId) {
+  const focusableElements = Array.from(
+    document.querySelectorAll(
+      'a[href], area[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )
+  ).filter(
+    (el) => el.tabIndex >= 0 || el.tagName === "A" || el.tagName === "BUTTON"
+  );
+
+  const currentElement = document.getElementById(currentId);
+  if (!currentElement) return;
+
+  const currentIndex = focusableElements.indexOf(currentElement);
+  if (currentIndex === -1) return;
+
+  const nextIndex = (currentIndex + 1) % focusableElements.length;
+  focusableElements[nextIndex].focus();
 };

@@ -2,22 +2,50 @@
 @using oskPro.Services;
 @inject IOskService OskService
 @implements IDisposable
-<MudPaper Elevation="10" Class="osk-container" @onclick:stopPropagation="true">
-    <MudGrid Spacing="0" Style="padding: 5px; display: flex; flex-direction: column; align-items: center;">
-        @foreach (var row in KeyboardLayout)
+<MudPaper Elevation="10" Class="@($"osk-container {PositionClass}")">
+    <MudIconButton Icon="@ToggleIcon" Class="@($"osk-toggle-position {PositionClass}")" OnClick="@TogglePosition" />
+    <!-- Wrap the keyboards in a flex container -->
+    <div class="keyboard-wrapper" style="display: flex; justify-content: center;">
+        <!-- Standard Keyboard -->
+        <MudGrid Spacing="0" Style="padding: 5px; display: flex; flex-direction: column; align-items: center;">
+            @foreach (var row in KeyboardLayout)
+            {
+                <MudItem xs="12" Style="display: flex; justify-content: center; margin: 2px 0;">
+                    @foreach (var key in row)
+                    {
+                        <MudButton ButtonType="ButtonType.Button" Variant="Variant.Filled"
+                            Class="@($"osk-key {GetKeyClass(key)} {(IsKeyActive(key) ? "active" : "")}")"
+                            OnClick="@(() => PressKey(key))"
+                            Style="@($"min-width: {GetKeyWidth(key)}; text-transform:none !important;")">
+                            @GetDisplayKey(key)
+                        </MudButton>
+                    }
+                </MudItem>
+            }
+        </MudGrid>
+
+        <!-- Conditionally render the Numpad next to the standard keyboard -->
+        @if (!ShowNumpad)
         {
-            <MudItem xs="12" Style="display: flex; justify-content: center; margin: 2px 0;">
-                @foreach (var key in row)
+            <MudGrid Spacing="0"
+                Style="padding: 5px; display: flex; flex-direction: column; align-items: center; margin-left: 20px;">
+                @foreach (var row in KeyboardWithNumpad)
                 {
-                    <MudButton Variant="Variant.Filled"
-                        Class="@($"osk-key {GetKeyClass(key)} {(IsKeyActive(key) ? "active" : "")}")"
-                        OnClick="@(() => PressKey(key))" Style="@($"min-width: {GetKeyWidth(key)};")">
-                        @GetDisplayKey(key)
-                    </MudButton>
+                    <MudItem xs="12" Style="display: flex; justify-content: center; margin: 2px 0;">
+                        @foreach (var key in row)
+                        {
+                            <MudButton ButtonType="ButtonType.Button" Variant="Variant.Filled"
+                                Class="@($"osk-key {GetKeyClass(key)} {(IsKeyActive(key) ? "active" : "")}")"
+                                OnClick="@(() => PressKey(key))"
+                                Style="@($"min-width: {GetKeyWidth(key)}; text-transform:none !important;")">
+                                @GetDisplayKey(key)
+                            </MudButton>
+                        }
+                    </MudItem>
                 }
-            </MudItem>
+            </MudGrid>
         }
-    </MudGrid>
+    </div>
 </MudPaper>
 
 @code {
@@ -26,10 +54,8 @@
     private bool _isCapsLock;
     private bool _isAltGrActive;
     private HashSet<string> _activeKeys = new();
-
     private static readonly List<List<string>> StandardKeyboard = new()
 {
-new() { "^", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "ß", "'", "Backspace" },
 new() { "Tab", "q", "w", "e", "r", "t", "z", "u", "i", "o", "p", "ü", "+", "#" },
 new() { "Caps", "a", "s", "d", "f", "g", "h", "j", "k", "l", "ö", "ä", "Enter" },
 new() { "Shift", "<", "y", "x", "c", "v", "b", "n", "m", ",", ".", "-", "Shift" },
@@ -41,7 +67,7 @@ new() { "Ctrl", "Win", "Alt", "Space", "AltGr", "Menu", "Ctrl" }
 new() { "7", "8", "9", "/" },
 new() { "4", "5", "6", "*" },
 new() { "1", "2", "3", "-" },
-new() { "0", ".", "↩", "+" }
+new() { "0", ".", "⬅", "+" }
 };
 
     private List<List<string>> KeyboardLayout => ShowNumpad ? KeyboardWithNumpad : StandardKeyboard;
@@ -64,15 +90,15 @@ new() { "0", ".", "↩", "+" }
     {
         return key switch
         {
-            "Backspace" => "100px",
-            "Tab" => "80px",
-            "#" => "50px",
-            "Caps" => "90px",
-            "Enter" => "120px",
-            "Shift" => "100px",
-            "Space" => "400px",
-            "Ctrl" or "Alt" or "Win" or "AltGr" or "Menu" => "70px",
-            _ => "50px"
+            "Backspace" => "140px",
+            "Tab" => "110px",
+            "#" => "80px",
+            "Caps" => "120px",
+            "Enter" => "150px",
+            "Shift" => "140px",
+            "Space" => "430px",
+            "Ctrl" or "Alt" or "Win" or "AltGr" or "Menu" => "100px",
+            _ => "80px"
         };
     }
 
@@ -93,6 +119,12 @@ new() { "0", ".", "↩", "+" }
         if (!IsModifierKey(key))
         {
             var actualKey = GetDisplayKey(key);
+            if (key == "Tab")
+            {
+                // Special handling is done in KeyPressed
+                OskService.KeyPressed(actualKey, false);
+                return;
+            }
             OskService.KeyPressed(actualKey, false);
             _activeKeys.Add(key.ToLower());
             StateHasChanged();
@@ -155,5 +187,14 @@ new() { "0", ".", "↩", "+" }
     {
         OskService.OnVisibilityChanged -= StateHasChanged;
         OskService.OnPhysicalKeyPress -= HandlePhysicalKeyPress;
+    }
+    private bool _isTopPosition = false;
+    private string PositionClass => _isTopPosition ? "top-position" : "bottom-position";
+    private string ToggleIcon => _isTopPosition ? Icons.Material.Filled.ArrowDownward : Icons.Material.Filled.ArrowUpward;
+
+    private void TogglePosition()
+    {
+        _isTopPosition = !_isTopPosition;
+        StateHasChanged();
     }
 }
